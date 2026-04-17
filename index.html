@@ -1,109 +1,272 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chat Família Online</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat Família</title>
 
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:#0b141a;
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+}
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial;
-      background: #ece5dd;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
+/* HEADER */
+header{
+  background:#202c33;
+  color:#fff;
+  padding:10px;
+}
+#topoNome{font-weight:bold;}
+#status{font-size:12px;opacity:0.7;}
 
-    header {
-      background: #075E54;
-      color: white;
-      padding: 15px;
-      text-align: center;
-    }
+/* CHAT */
+#chat{
+  flex:1;
+  overflow-y:auto;
+  padding:10px;
+  display:flex;
+  flex-direction:column;
+}
 
-    #chat {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px;
-    }
+/* MSG */
+.msg{
+  max-width:75%;
+  padding:10px;
+  margin:5px;
+  border-radius:10px;
+}
+.me{background:#005c4b;color:#fff;align-self:flex-end;}
+.other{background:#202c33;color:#fff;align-self:flex-start;}
 
-    .msg {
-      max-width: 75%;
-      padding: 10px;
-      margin: 5px;
-      border-radius: 10px;
-    }
+.name{font-size:12px;opacity:0.7;}
+.text{font-size:15px;}
 
-    .me { background: #DCF8C6; margin-left: auto; }
-    .other { background: white; margin-right: auto; }
+.check{
+  font-size:11px;
+  text-align:right;
+  margin-top:5px;
+}
 
-    footer {
-      display: flex;
-      padding: 10px;
-      background: #eee;
-    }
+/* INPUT */
+footer{
+  display:flex;
+  padding:10px;
+  background:#202c33;
+}
 
-    input {
-      flex: 1;
-      padding: 10px;
-      border-radius: 20px;
-      border: 1px solid #ccc;
-    }
+.input-box{
+  flex:1;
+  display:flex;
+  background:#2a3942;
+  border-radius:30px;
+  padding:8px;
+  align-items:center;
+}
 
-    button {
-      margin-left: 10px;
-      padding: 10px;
-      border: none;
-      border-radius: 50%;
-      background: #25D366;
-      color: white;
-    }
-  </style>
+input{
+  flex:1;
+  border:none;
+  background:transparent;
+  color:#fff;
+  outline:none;
+}
+
+button{
+  margin-left:5px;
+  border:none;
+  border-radius:50%;
+  padding:10px;
+  background:#00a884;
+  color:#fff;
+}
+
+/* EMOJI */
+#emojiBox{
+  display:none;
+  position:absolute;
+  bottom:70px;
+  background:#222;
+  padding:10px;
+  border-radius:10px;
+}
+#emojiBox span{
+  font-size:22px;
+  margin:5px;
+  cursor:pointer;
+}
+</style>
 </head>
 
 <body>
 
-<header>👨‍👩‍👧 Chat da Família</header>
+<header>
+<div id="topoNome">Chat Família</div>
+<div id="status"></div>
+</header>
 
 <div id="chat"></div>
 
 <footer>
-  <input id="msg" placeholder="Mensagem...">
-  <button onclick="send()">➤</button>
+<div class="input-box">
+<span onclick="toggleEmoji()">😀</span>
+<input id="msg" placeholder="Mensagem">
+</div>
+<button onclick="send()">➤</button>
 </footer>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import {
-    getFirestore,
-    collection,
-    addDoc,
-    query,
-    orderBy,
-    onSnapshot
-  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+<div id="emojiBox">
+<span>😀</span><span>😂</span><span>😍</span><span>😎</span>
+<span>😢</span><span>😡</span><span>👍</span><span>❤️</span>
+<span>🔥</span><span>🎉</span><span>🤣</span><span>👏</span>
+</div>
 
-  // 🔥 COLE SUA CONFIG AQUI
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getFirestore, collection, addDoc,
+  query, orderBy, onSnapshot,
+  doc, setDoc, updateDoc, deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+/* FIREBASE */
 const firebaseConfig = {
   apiKey: "AIzaSyCK8odwL9Q4IVGml5crFHhhNS4UpTSR_r4",
   authDomain: "chatfamiliar-e6fa1.firebaseapp.com",
-  projectId: "chatfamiliar-e6fa1",
-  storageBucket: "chatfamiliar-e6fa1.firebasestorage.app",
-  messagingSenderId: "864418873935",
-  appId: "1:864418873935:web:15528a0b92dcabb58ae03a",
-  measurementId: "G-3CSKLP1HVX"
+  projectId: "chatfamiliar-e6fa1"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+/* USER */
+let user = localStorage.getItem("user");
+if(!user){
+  user = prompt("Seu nome:");
+  localStorage.setItem("user", user);
+}
+
+const chat = document.getElementById("chat");
+const input = document.getElementById("msg");
+const emojiBox = document.getElementById("emojiBox");
+const topoNome = document.getElementById("topoNome");
+const status = document.getElementById("status");
+
+/* EMOJI */
+window.toggleEmoji = ()=>{
+  emojiBox.style.display = emojiBox.style.display==="none"?"block":"none";
+};
+
+emojiBox.querySelectorAll("span").forEach(e=>{
+  e.onclick = ()=>{
+    input.value += e.textContent;
+    emojiBox.style.display="none";
   };
+});
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+/* DIGITANDO */
+input.addEventListener("input", ()=>{
+  setDoc(doc(db,"status",user),{
+    typing:true
+  },{merge:true});
 
-  let user = localStorage.getItem("user");
+  clearTimeout(window.t);
+  window.t=setTimeout(()=>{
+    setDoc(doc(db,"status",user),{
+      typing:false
+    },{merge:true});
+  },1000);
+});
 
+/* ENVIAR */
+window.send = async ()=>{
+  const texto = input.value.trim();
+  if(!texto) return;
+
+  await addDoc(collection(db,"messages"),{
+    user,
+    text:texto,
+    time:Date.now(),
+    read:false
+  });
+
+  input.value="";
+};
+
+/* RECEBER */
+onSnapshot(query(collection(db,"messages"),orderBy("time")), snap=>{
+  chat.innerHTML="";
+  let outro="Chat Família";
+
+  snap.forEach(d=>{
+    const m=d.data();
+
+    if(m.user!==user){
+      outro=m.user;
+
+      if(!m.read){
+        updateDoc(doc(db,"messages",d.id),{read:true});
+      }
+    }
+
+    const div=document.createElement("div");
+    div.className="msg "+(m.user===user?"me":"other");
+
+    let check="";
+    if(m.user===user){
+      check = m.read ? "✔✔" : "✔";
+    }
+
+    div.innerHTML=`
+      <div class="name">${m.user}</div>
+      <div class="text">${m.text}</div>
+      <div class="check">${check}</div>
+    `;
+
+    /* APAGAR */
+    if(m.user===user){
+      let timer;
+      div.onmousedown = div.ontouchstart = ()=>{
+        timer=setTimeout(()=>{
+          if(confirm("Apagar mensagem?")){
+            deleteDoc(doc(db,"messages",d.id));
+          }
+        },600);
+      };
+      div.onmouseup = div.ontouchend = ()=>clearTimeout(timer);
+    }
+
+    chat.appendChild(div);
+  });
+
+  topoNome.innerText = outro;
+  chat.scrollTop = chat.scrollHeight;
+});
+
+/* STATUS DIGITANDO */
+onSnapshot(collection(db,"status"), snap=>{
+  let digitando=false;
+
+  snap.forEach(d=>{
+    if(d.id!==user){
+      if(d.data().typing){
+        digitando=true;
+      }
+    }
+  });
+
+  status.innerText = digitando ? "digitando..." : "";
+});
+
+</script>
+
+</body>
+</html>
   if (!user) {
     user = prompt("Seu nome:");
     localStorage.setItem("user", user);
