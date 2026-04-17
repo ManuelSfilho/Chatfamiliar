@@ -46,10 +46,11 @@ header{
 .name{font-size:12px;opacity:0.7;}
 .text{font-size:15px;}
 
-.check{
+.info{
   font-size:11px;
   text-align:right;
   margin-top:5px;
+  opacity:0.7;
 }
 
 /* INPUT */
@@ -104,6 +105,181 @@ button{
 
 <body>
 
+<header>
+<div id="topoNome">Chat Família</div>
+<div id="status"></div>
+</header>
+
+<div id="chat"></div>
+
+<footer>
+<div class="input-box">
+<span onclick="toggleEmoji()">😀</span>
+<input id="msg" placeholder="Mensagem">
+</div>
+<button onclick="send()">➤</button>
+</footer>
+
+<div id="emojiBox">
+<span>😀</span><span>😂</span><span>😍</span><span>😎</span>
+<span>😢</span><span>😡</span><span>👍</span><span>❤️</span>
+<span>🔥</span><span>🎉</span><span>🤣</span><span>👏</span>
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getFirestore, collection, addDoc,
+  query, orderBy, onSnapshot,
+  doc, setDoc, updateDoc, deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+/* FIREBASE */
+const firebaseConfig = {
+  apiKey: "AIzaSyCK8odwL9Q4IVGml5crFHhhNS4UpTSR_r4",
+  authDomain: "chatfamiliar-e6fa1.firebaseapp.com",
+  projectId: "chatfamiliar-e6fa1"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+/* USER */
+let user = localStorage.getItem("user");
+if(!user){
+  user = prompt("Seu nome:");
+  localStorage.setItem("user", user);
+}
+
+const chat = document.getElementById("chat");
+const input = document.getElementById("msg");
+const emojiBox = document.getElementById("emojiBox");
+const topoNome = document.getElementById("topoNome");
+const status = document.getElementById("status");
+
+/* HORA */
+function hora(t){
+  const d = new Date(t);
+  return d.getHours().toString().padStart(2,'0') + ":" +
+         d.getMinutes().toString().padStart(2,'0');
+}
+
+/* EMOJI */
+window.toggleEmoji = ()=>{
+  emojiBox.style.display = emojiBox.style.display==="none"?"block":"none";
+};
+
+emojiBox.querySelectorAll("span").forEach(e=>{
+  e.onclick = ()=>{
+    input.value += e.textContent;
+    emojiBox.style.display="none"; // fecha automático
+  };
+});
+
+/* DIGITANDO */
+input.addEventListener("input", ()=>{
+  setDoc(doc(db,"status",user),{typing:true},{merge:true});
+
+  clearTimeout(window.t);
+  window.t=setTimeout(()=>{
+    setDoc(doc(db,"status",user),{typing:false},{merge:true});
+  },1000);
+});
+
+/* ENVIAR */
+window.send = async ()=>{
+  const texto = input.value.trim();
+  if(!texto) return;
+
+  await addDoc(collection(db,"messages"),{
+    user,
+    text:texto,
+    time:Date.now(),
+    read:false
+  });
+
+  input.value="";
+};
+
+/* NOTIFICAÇÃO */
+function notificar(txt){
+  if(Notification.permission==="granted"){
+    new Notification("Nova mensagem", {body: txt});
+  }
+}
+if("Notification" in window){
+  Notification.requestPermission();
+}
+
+/* RECEBER */
+onSnapshot(query(collection(db,"messages"),orderBy("time")), snap=>{
+  chat.innerHTML="";
+  let outro="Chat Família";
+
+  snap.forEach(d=>{
+    const m=d.data();
+
+    if(m.user!==user){
+      outro=m.user;
+
+      if(!m.read){
+        updateDoc(doc(db,"messages",d.id),{read:true});
+        notificar(m.text);
+      }
+    }
+
+    const div=document.createElement("div");
+    div.className="msg "+(m.user===user?"me":"other");
+
+    let check="";
+    if(m.user===user){
+      check = m.read ? "✔✔" : "✔";
+    }
+
+    div.innerHTML=`
+      <div class="name">${m.user}</div>
+      <div class="text">${m.text}</div>
+      <div class="info">${hora(m.time)} ${check}</div>
+    `;
+
+    /* APAGAR (segurar melhorado) */
+    if(m.user===user){
+      let timer;
+      div.onmousedown = div.ontouchstart = ()=>{
+        timer=setTimeout(()=>{
+          if(confirm("Apagar mensagem?")){
+            deleteDoc(doc(db,"messages",d.id));
+          }
+        },700);
+      };
+      div.onmouseup = div.ontouchend = ()=>clearTimeout(timer);
+    }
+
+    chat.appendChild(div);
+  });
+
+  topoNome.innerText = outro;
+  chat.scrollTo({top:chat.scrollHeight, behavior:"smooth"});
+});
+
+/* STATUS DIGITANDO */
+onSnapshot(collection(db,"status"), snap=>{
+  let digitando=false;
+
+  snap.forEach(d=>{
+    if(d.id!==user && d.data().typing){
+      digitando=true;
+    }
+  });
+
+  status.innerText = digitando ? "digitando..." : "";
+});
+
+</script>
+
+</body>
+</html>
 <header>
 <div id="topoNome">Chat Família</div>
 <div id="status"></div>
